@@ -16,8 +16,8 @@ module.exports = {
                 link: '/'
             },
             {
-                text: '开始',
-                link: '/guide/VirtualDOM'
+                text: '指南',
+                link: '/guide/'
             },
             {
                 text: 'GitHub',
@@ -25,12 +25,12 @@ module.exports = {
             },
         ],
         sidebar: [{
-            title: '开始', // 必要的
+            title: '指南', // 必要的
             path: '/guide/', // 可选的, 标题的跳转链接，应为绝对路径且必须存在
             sidebarDepth: 1, // 可选的, 默认值是 1，
             collapsable: false,
             children: [
-                ['/guide/', '说明'],
+                ['/guide/', '开始'],
                 ['/guide/VirtualDOM', 'VirtualDOM'],
                 ['/guide/Fiber', 'Fiber'],
                 ['/guide/React', 'React核心代码解读']
