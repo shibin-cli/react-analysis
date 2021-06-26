@@ -1,6 +1,7 @@
 import {
     updateNodeElement,
-    updateNodeText
+    updateNodeText,
+    unmountElement
 } from "./update"
 import {
     isComponent,
@@ -11,18 +12,29 @@ export default function diff(virtualDOM, container, oldDOM) {
     if (!oldDOM) {
         mountElement(virtualDOM, container)
     } else {
-        
         const oldVirtualDOM = oldDOM.__virtualDOM
+
         if (oldVirtualDOM.type === virtualDOM.type) {
             if (virtualDOM.type === 'text') {
-                updateNodeText(virtualDOM.props.textContent)
+                updateNodeText(virtualDOM, oldVirtualDOM, oldDOM)
             } else {
-                updateNodeElement(oldDOM, virtualDOM)
+                updateNodeElement(oldDOM, virtualDOM, oldVirtualDOM)
+            }
+        } else if (!isComponent(virtualDOM)) {
+            const el = createDOM(virtualDOM)
+            container.replaceChild(el, oldDOM)
+        }
+
+        const oldChildNodes = oldDOM.childNodes
+        virtualDOM.children.forEach((child, index) => {
+            diff(child, oldDOM, oldChildNodes[index])
+        })
+
+        if (oldChildNodes.length > virtualDOM.children.length) {
+            for (let i = virtualDOM.children.length, len = oldChildNodes.length; i < len; i++) {
+                unmountElement(oldChildNodes[i])
             }
         }
-        virtualDOM.children.forEach((child,index)=>{
-            // diff(child,,)
-        })
     }
 }
 
@@ -36,7 +48,6 @@ function mountElement(virtualDOM, container) {
 
 function mounNativeElement(virtualDOM, container) {
     const dom = createDOM(virtualDOM)
-    dom.__virtualDOM = virtualDOM
     container.appendChild(dom)
 }
 
@@ -73,5 +84,6 @@ function createDOM(virtualDOM) {
     virtualDOM.children.forEach(child => {
         mountElement(child, el)
     })
+    el.__virtualDOM = virtualDOM
     return el
 }

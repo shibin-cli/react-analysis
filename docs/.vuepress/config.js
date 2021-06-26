@@ -1,5 +1,5 @@
 module.exports = {
-    title: 'react原理与核心代码解读',
+    title: 'React原理与核心代码解读',
     description: '实现一个精简版的React，解读React的核心代码',
     base: '/react-analysis/',
     dest: './dist',

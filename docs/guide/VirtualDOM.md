@@ -320,7 +320,7 @@ export default class Component {
     }
 }
 ```
-返回组件render函数的virtualDOM
+返回组件render函数的VirtualDOM
 ```js
 function buildClassComponent(virtualDOM) {
     const component = new virtualDOM.type(virtualDOM.props)
@@ -339,6 +339,173 @@ export default class App extends SpReact.Component{
 ```
 
 ## 更新
+```js
+const jsx = (<div className="aa"><h1 id="title">VirtualDOM</h1><div>创建VirtualDOM</div></div>)
+const jsx1 = (<div className="aa"><h1 id="title">VirtualDOM123</h1><div>创建VirtualDOM123</div></div>)
+
+SpReact.render(jsx, container)
+setTimeout(() => {
+    SpReact.render(jsx1, container)
+},1000)
+```
+### VitrualDOM对象比对
+```js
+export default function diff(virtualDOM, container, oldDOM) {
+    if (!oldDOM) {
+        mountElement(virtualDOM, container)
+    } else {
+        // VirtualDOM对象比对
+    }
+}
+```
+比对时，我们需要拿到新旧的VirtualDOM对象进行比较，所以在创建DOM对象时，需要保存下VirtualDOM对象保存下来。
+
+这里把VirtualDOM对象保存在DOM上
+```js {13}
+function createDOM(virtualDOM) {
+    const type = virtualDOM.type
+    let el
+    if (type === 'text') {
+        el = document.createTextNode(virtualDOM.props.textContent)
+    } else {
+        el = document.createElement(type)
+        updateNodeElement(el, virtualDOM)
+    }
+    virtualDOM.children.forEach(child => {
+        mountElement(child, el)
+    })
+    el.__virtualDOM = virtualDOM
+    return el
+}
+```
+### 节点类型相同
+接下来,处理节点类型（type）相同时
+* 当前节点不需要更新，需要更新节点的属性事件
+* 不管节点是否相同，都需要对子节点进行比对
+* 节点多余时需要删除多余的节点
+
+```js {5-28}
+export default function diff(virtualDOM, container, oldDOM) {
+    if (!oldDOM) {
+        mountElement(virtualDOM, container)
+    } else {
+        const oldVirtualDOM = oldDOM.__virtualDOM
+
+        // type相同时，说明当前节点不需要更新 
+        if (oldVirtualDOM.type === virtualDOM.type) {
+            // 更新文本
+            if (virtualDOM.type === 'text') {
+                updateNodeText(virtualDOM, oldVirtualDOM, oldDOM)
+            } else {
+                // 更新节点上的事件和属性
+                updateNodeElement(oldDOM, virtualDOM)
+            }
+        }
+
+        // 不管节点是否相同，都需要对子节点进行比对
+        const oldChildNodes = oldDOM.childNodes
+        virtualDOM.children.forEach((child, index) => {
+            diff(child, oldDOM, oldChildNodes[index])
+        })
+        // 当节点多余时，需要删除多余的节点
+        if (oldChildNodes.length > virtualDOM.children.length) {
+            for (let i = virtualDOM.children.length, len = oldChildNodes.length; i < len; i++) {
+                unmountElement(oldChildNodes[i])
+            }
+        }
+    }
+}
+```
+```js
+// 更新文本节点
+export function updateNodeText(virtualDOM, oldVirtualDOM, oldDOM) {
+    if (virtualDOM.props.textContent !== oldVirtualDOM.props.textContent) {
+        oldDOM.textContent = virtualDOM.props.textContent
+        oldDOM.__virtualDOM = virtualDOM
+    }
+}
+// 删除节点
+export function unmountElement(el) {
+    el.remove()
+}
+```
+更新元素上的事件，对原来的`updateNodeElement`方法进行完善
+```js
+export function updateNodeElement(el, virtualDOM, oldVirtualDOM) {
+    const props = virtualDOM.props || {}
+    const oldProps = oldVirtualDOM && oldVirtualDOM.props || {}
+    Object.keys(virtualDOM.props).forEach(propName => {
+        const val = props[propName]
+        const oldVal = oldProps[propName]
+        if (val === oldVal) {
+            return
+        }
+        if (propName.startsWith('on')) {
+            const eventName = propName.slice(2).toLowerCase()
+            el.addEventListener(eventName, val)
+            if (oldVal) {
+                el.removeEventListener(eventName, oldVal)
+            }
+        } else if (propName === 'className') {
+            el.setAttribute('class', val)
+        } else if (propName !== 'children') {
+            el.setAttribute(propName, val)
+        }
+    })
+
+    // 删除旧VirtualDOM对象中存在，而新VirtualDOM对象中不存在的属性
+    // 即删除DOM中多余的事件和属性
+    Object.keys(oldProps).forEach(oldPropName => {
+        const oldVal = oldProps[oldPropName]
+        const val = props[oldPropName]
+        if (!val) {
+            if (oldPropName.startsWith('on')) {
+                const oldEventName = oldPropName.slice(2).toLowerCase()
+                el.removeEventListener(oldEventName, oldVal)
+            } else if (oldPropName === 'className') {
+                el.removeAttribute('class', oldVal)
+            } else if(propName !== 'children') {
+                el.removeAttribute(oldPropName, oldVal)
+            }
+        }
+    })
+}
+```
+### 节点类型不相同
+节点类型不相同时，只需要创建新VirtualDOM对象对应的DOM，并替换掉旧VirtualDOM对象对应的DOM
+```js {13-16}
+export default function diff(virtualDOM, container, oldDOM) {
+    if (!oldDOM) {
+        mountElement(virtualDOM, container)
+    } else {
+        const oldVirtualDOM = oldDOM.__virtualDOM
+
+        if (oldVirtualDOM.type === virtualDOM.type) {
+            if (virtualDOM.type === 'text') {
+                updateNodeText(virtualDOM, oldVirtualDOM, oldDOM)
+            } else {
+                updateNodeElement(oldDOM, virtualDOM, oldVirtualDOM)
+            }
+        } else if (!isComponent(virtualDOM)) {
+            const el = createDOM(virtualDOM)
+            container.replaceChild(el, oldDOM)
+        }
+
+        const oldChildNodes = oldDOM.childNodes
+        virtualDOM.children.forEach((child, index) => {
+            diff(child, oldDOM, oldChildNodes[index])
+        })
+
+        if (oldChildNodes.length > virtualDOM.children.length) {
+            for (let i = virtualDOM.children.length, len = oldChildNodes.length; i < len; i++) {
+                unmountElement(oldChildNodes[i])
+            }
+        }
+    }
+}
+```
+### 组件更新
+
 ###  VirtualDOM对象比对
 ### 删除节点
 ### 组件对比
