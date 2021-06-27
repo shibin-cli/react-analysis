@@ -472,7 +472,7 @@ export function updateNodeElement(el, virtualDOM, oldVirtualDOM) {
 }
 ```
 ### 节点类型不相同
-节点类型不相同时，只需要创建新VirtualDOM对象对应的DOM，并替换掉旧VirtualDOM对象对应的DOM
+ad
 ```js {13-16}
 export default function diff(virtualDOM, container, oldDOM) {
     if (!oldDOM) {
