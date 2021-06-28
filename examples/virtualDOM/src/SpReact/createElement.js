@@ -1,6 +1,6 @@
 export default function createElement(type, props, ...children) {
-    const newChildren = children.reduce((res, child) => {
-        if (typeof child === 'string'||typeof child === 'number') {
+    const newChildren = [].concat(...children).reduce((res, child) => {
+        if (typeof child === 'string' || typeof child === 'number') {
             res.push(createElement('text', {
                 textContent: child
             }))

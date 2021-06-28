@@ -21,7 +21,7 @@ export function updateNodeElement(el, virtualDOM, oldVirtualDOM) {
             el.setAttribute(propName, val)
         }
     })
-
+    
     Object.keys(oldProps).forEach(oldPropName => {
         const oldVal = oldProps[oldPropName]
         const val = props[oldPropName]
@@ -31,7 +31,7 @@ export function updateNodeElement(el, virtualDOM, oldVirtualDOM) {
                 el.removeEventListener(oldEventName, oldVal)
             } else if (oldPropName === 'className') {
                 el.removeAttribute('class', oldVal)
-            } else if (propName !== 'children') {
+            } else if (oldPropName !== 'children') {
                 el.removeAttribute(oldPropName, oldVal)
             }
         }
