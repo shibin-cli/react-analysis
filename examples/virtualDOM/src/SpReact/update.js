@@ -1,3 +1,5 @@
+import diff from "./diff"
+
 export function updateNodeElement(el, virtualDOM, oldVirtualDOM) {
     const props = virtualDOM.props || {}
     const oldProps = oldVirtualDOM && oldVirtualDOM.props || {}
@@ -15,7 +17,7 @@ export function updateNodeElement(el, virtualDOM, oldVirtualDOM) {
             }
         } else if (propName === 'className') {
             el.setAttribute('class', val)
-        } else if (propName !== 'children') {
+        } else if (propName !== 'children' && propName!=='ref') {
             el.setAttribute(propName, val)
         }
     })
@@ -29,18 +31,36 @@ export function updateNodeElement(el, virtualDOM, oldVirtualDOM) {
                 el.removeEventListener(oldEventName, oldVal)
             } else if (oldPropName === 'className') {
                 el.removeAttribute('class', oldVal)
-            } else if(propName !== 'children') {
+            } else if (propName !== 'children') {
                 el.removeAttribute(oldPropName, oldVal)
             }
         }
     })
 }
+
 export function updateNodeText(virtualDOM, oldVirtualDOM, oldDOM) {
     if (virtualDOM.props.textContent !== oldVirtualDOM.props.textContent) {
         oldDOM.textContent = virtualDOM.props.textContent
         oldDOM.__virtualDOM = virtualDOM
     }
 }
+
+export function updateComponent(virtualDOM, oldVirtualDOM, oldDOM, container) {
+    const oldComponent = oldVirtualDOM.component
+
+    oldComponent.componentWillReceiveProps()
+    let props = virtualDOM.props
+    let oldProps = oldVirtualDOM.props
+    if (oldComponent.shouldComponentUpdate(props, oldProps)) {
+        oldComponent.componentWillUpdate(props)
+        oldComponent.updateProps(virtualDOM.props)
+        const nextVirtualDOM = oldComponent.render()
+        nextVirtualDOM.component = oldComponent
+        diff(nextVirtualDOM, container, oldDOM)
+        oldComponent.componentDidUpdate(oldProps)
+    }
+}
+
 export function unmountElement(el) {
     el.remove()
 }

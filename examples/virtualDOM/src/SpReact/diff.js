@@ -1,13 +1,17 @@
 import {
     updateNodeElement,
     updateNodeText,
-    unmountElement
+    unmountElement,
+    updateComponent
 } from "./update"
 import {
     isComponent,
-    isFunctionComponent
+    isSameComponent
 } from "./utils"
-
+import {
+    mountElement,
+    createDOM
+} from './mount'
 export default function diff(virtualDOM, container, oldDOM) {
     if (!oldDOM) {
         mountElement(virtualDOM, container)
@@ -20,70 +24,34 @@ export default function diff(virtualDOM, container, oldDOM) {
             } else {
                 updateNodeElement(oldDOM, virtualDOM, oldVirtualDOM)
             }
-        } else if (!isComponent(virtualDOM)) {
-            const el = createDOM(virtualDOM)
-            container.replaceChild(el, oldDOM)
-        }
+            const oldChildNodes = oldDOM.childNodes
+            virtualDOM.children.forEach((child, index) => {
+                diff(child, oldDOM, oldChildNodes[index])
+            })
 
-        const oldChildNodes = oldDOM.childNodes
-        virtualDOM.children.forEach((child, index) => {
-            diff(child, oldDOM, oldChildNodes[index])
-        })
-
-        if (oldChildNodes.length > virtualDOM.children.length) {
-            for (let i = virtualDOM.children.length, len = oldChildNodes.length; i < len; i++) {
-                unmountElement(oldChildNodes[i])
+            if (oldChildNodes.length > virtualDOM.children.length) {
+                for (let i = oldChildNodes.length - 1, len = virtualDOM.children.length; i > len - 1; i--) {
+                    unmountElement(oldChildNodes[i])
+                }
             }
+        } else if (!isComponent(virtualDOM)) {
+            // const el = createDOM(virtualDOM)
+            // container.replaceChild(el, oldDOM)
+            mountElement(virtualDOM, container,oldDOM)
+        } else {
+            diffComponent(virtualDOM, oldVirtualDOM, oldDOM, container)
         }
+
+
     }
 }
 
-function mountElement(virtualDOM, container) {
-    if (isComponent(virtualDOM)) {
-        mountComponent(virtualDOM, container)
+function diffComponent(virtualDOM, oldVirtualDOM, oldDOM, container) {
+    if (isSameComponent(virtualDOM, oldVirtualDOM)) {
+        updateComponent(virtualDOM, oldVirtualDOM, oldDOM, container)
+        console.log('同一组件',oldVirtualDOM)
     } else {
-        mounNativeElement(virtualDOM, container)
+        mountElement(virtualDOM, container, oldDOM)
+        console.log('不是同一组件')
     }
-}
-
-function mounNativeElement(virtualDOM, container) {
-    const dom = createDOM(virtualDOM)
-    container.appendChild(dom)
-}
-
-function mountComponent(virtualDOM, container) {
-    let newVirtualDOM
-
-    if (isFunctionComponent(virtualDOM)) {
-        newVirtualDOM = buildFunctionComponent(virtualDOM)
-    } else {
-        newVirtualDOM = buildClassComponent(virtualDOM)
-    }
-    mountElement(newVirtualDOM, container)
-}
-
-function buildFunctionComponent(virtualDOM) {
-    return virtualDOM.type(virtualDOM.props || {})
-}
-
-function buildClassComponent(virtualDOM) {
-    const component = new virtualDOM.type(virtualDOM.props)
-    const newVirtualDOM = component.render()
-    return newVirtualDOM
-}
-
-function createDOM(virtualDOM) {
-    const type = virtualDOM.type
-    let el
-    if (type === 'text') {
-        el = document.createTextNode(virtualDOM.props.textContent)
-    } else {
-        el = document.createElement(type)
-        updateNodeElement(el, virtualDOM)
-    }
-    virtualDOM.children.forEach(child => {
-        mountElement(child, el)
-    })
-    el.__virtualDOM = virtualDOM
-    return el
 }

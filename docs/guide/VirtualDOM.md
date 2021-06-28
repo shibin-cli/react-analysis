@@ -381,10 +381,10 @@ function createDOM(virtualDOM) {
 ### 节点类型相同
 接下来,处理节点类型（type）相同时
 * 当前节点不需要更新，需要更新节点的属性事件
-* 不管节点是否相同，都需要对子节点进行比对
+* 节点相同时，需要对比子节点
 * 节点多余时需要删除多余的节点
 
-```js {5-28}
+```js {5-27}
 export default function diff(virtualDOM, container, oldDOM) {
     if (!oldDOM) {
         mountElement(virtualDOM, container)
@@ -400,17 +400,16 @@ export default function diff(virtualDOM, container, oldDOM) {
                 // 更新节点上的事件和属性
                 updateNodeElement(oldDOM, virtualDOM)
             }
-        }
-
-        // 不管节点是否相同，都需要对子节点进行比对
-        const oldChildNodes = oldDOM.childNodes
-        virtualDOM.children.forEach((child, index) => {
-            diff(child, oldDOM, oldChildNodes[index])
-        })
-        // 当节点多余时，需要删除多余的节点
-        if (oldChildNodes.length > virtualDOM.children.length) {
-            for (let i = virtualDOM.children.length, len = oldChildNodes.length; i < len; i++) {
-                unmountElement(oldChildNodes[i])
+            // 节点进行比对
+            const oldChildNodes = oldDOM.childNodes
+            virtualDOM.children.forEach((child, index) => {
+                diff(child, oldDOM, oldChildNodes[index])
+            })
+            // 当节点多余时，需要删除多余的节点
+            if (oldChildNodes.length > virtualDOM.children.length) {
+                for (let i = oldChildNodes.length - 1, len = virtualDOM.children.length; i > len - 1; i--) {
+                    unmountElement(oldChildNodes[i])
+                }
             }
         }
     }
@@ -472,7 +471,7 @@ export function updateNodeElement(el, virtualDOM, oldVirtualDOM) {
 }
 ```
 ### 节点类型不相同
-ad
+节点类型不相同并且不是组件，直接创建新的`VirtualDOM`所对应的DOM并替换掉原来的DOM元素
 ```js {13-16}
 export default function diff(virtualDOM, container, oldDOM) {
     if (!oldDOM) {
@@ -497,7 +496,7 @@ export default function diff(virtualDOM, container, oldDOM) {
         })
 
         if (oldChildNodes.length > virtualDOM.children.length) {
-            for (let i = virtualDOM.children.length, len = oldChildNodes.length; i < len; i++) {
+            for (let i = oldChildNodes.length - 1, len = virtualDOM.children.length; i > len - 1; i--) {
                 unmountElement(oldChildNodes[i])
             }
         }
@@ -506,6 +505,229 @@ export default function diff(virtualDOM, container, oldDOM) {
 ```
 ### 组件更新
 
-###  VirtualDOM对象比对
-### 删除节点
-### 组件对比
+#### setState更新
+需要在子组件的父组件上声明`setState`方法，修改组件的state值，调用组件的render方法生产新的`VirtualDOM`对象，然后比对新旧`VirtualDOM`对象，更新页面DOM元素
+```js {5-19}
+export default class Component {
+    constructor(props) {
+        this.props = props
+    }
+    setState(state) {
+        this.state = {
+            ...this.state,
+            ...state
+        }
+        // 生成新的VirtualDOM对象
+        const virtualDOM = this.render()
+        // 获取旧的DOM对象
+        const oldDOM = this.getDOM()
+        // 将component属性添加的virtualDOM上
+        virtualDOM.component = this
+        // 比对
+        diff(virtualDOM, oldDOM.parentNode, oldDOM)
+    }
+    setDOM(dom) {
+        this.__DOM = dom
+    }
+    getDOM() {
+        return this.__DOM
+    }
+    render() {
+
+    }
+```
+将组件保存到新的`VirtualDOM`对象上
+```js {4}
+function buildClassComponent(virtualDOM) {
+    const component = new virtualDOM.type(virtualDOM.props)
+    const newVirtualDOM = component.render()
+    newVirtualDOM.component = component
+    return newVirtualDOM
+}
+```
+创建`VirtualDOM`对象的DOM元素之后，如果是**组件**对应的`VirtualDOM`对象，需要将组件的DOM元素保存到组件上。
+```js {4-7}
+function mounNativeElement(virtualDOM, container) {
+    const dom = createDOM(virtualDOM)
+    container.appendChild(dom)
+    const component = virtualDOM.component
+    if (component) {
+        component.setDOM(dom)
+    }
+}
+```
+#### 判断组件是否是同一节点
+```js
+SpReact.render(<App title="App"/>, container)
+setTimeout(() => {
+    SpReact.render(<App title="App1"/>, container)
+},1000)
+```
+如果新的`VirtualDOM`对象是个组件
+```js {17}
+export default function diff(virtualDOM, container, oldDOM) {
+    if (!oldDOM) {
+        mountElement(virtualDOM, container)
+    } else {
+        const oldVirtualDOM = oldDOM.__virtualDOM
+
+        if (oldVirtualDOM.type === virtualDOM.type) {
+            if (virtualDOM.type === 'text') {
+                updateNodeText(virtualDOM, oldVirtualDOM, oldDOM)
+            } else {
+                updateNodeElement(oldDOM, virtualDOM, oldVirtualDOM)
+            }
+        } else if (!isComponent(virtualDOM)) {
+            const el = createDOM(virtualDOM)
+            container.replaceChild(el, oldDOM)
+        } else {
+            diffComponent(virtualDOM, oldVirtualDOM, oldDOM, container)
+        }
+
+        const oldChildNodes = oldDOM.childNodes
+        virtualDOM.children.forEach((child, index) => {
+            diff(child, oldDOM, oldChildNodes[index])
+        })
+
+        if (oldChildNodes.length > virtualDOM.children.length) {
+            for (let i = oldChildNodes.length - 1, len = virtualDOM.children.length; i > len - 1; i--) {
+                unmountElement(oldChildNodes[i])
+            }
+        }
+    }
+}
+```
+判断是不是同一个组件
+```js
+export function isSameComponent(virtualDOM,oldVirtualDOM){
+    const oldComponent = oldVirtualDOM.component
+    return oldComponent && virtualDOM.type === oldComponent.constructor
+}
+```
+新旧`VirtualDOM`进行比对时，如果不是同一个组件，则需要创建新的`VirtualDOM`对象的节点对应的DOM，并删除掉`oldDOM`
+```js
+function diffComponent(virtualDOM, oldVirtualDOM, oldDOM, container) {
+    if (isSameComponent(virtualDOM, oldVirtualDOM)) {
+        updateComponent(virtualDOM, oldVirtualDOM, oldDOM, container)
+    } else {
+        // 这里没有直接创建对应的DOM元素，
+        // 是因为创建组件对应的DOM元素逻辑比较多，如将component保存到VirtualDOM对象上等
+        // 可以对原来的逻辑进行完善，复用之前的逻辑
+        mountElement(virtualDOM, container, oldDOM)
+    }
+}
+```
+mountElement后，最终都会调用`mounNativeElement`，这里在`mounNativeElement`里将oldDOM对象删除
+```js {23-25}
+export function mountElement(virtualDOM, container, oldDOM) {
+    if (isComponent(virtualDOM)) {
+        mountComponent(virtualDOM, container, oldDOM)
+    } else {
+        mounNativeElement(virtualDOM, container, oldDOM)
+    }
+}
+
+export function mountComponent(virtualDOM, container, oldDOM) {
+    let newVirtualDOM
+
+    if (isFunctionComponent(virtualDOM)) {
+        newVirtualDOM = buildFunctionComponent(virtualDOM)
+    } else {
+        newVirtualDOM = buildClassComponent(virtualDOM)
+    }
+    mountElement(newVirtualDOM, container, oldDOM)
+}
+
+export function mounNativeElement(virtualDOM, container, oldDOM) {
+    const dom = createDOM(virtualDOM)
+    container.appendChild(dom)
+    if (oldDOM) {
+        unmountElement(oldDOM)
+    }
+    const component = virtualDOM.component
+    if (component) {
+        component.setDOM(dom)
+    }
+}
+```
+如果是同一个组件，就更新组件的props，重新生成virtualDOM对象，进行比对
+```js
+export function updateComponent(virtualDOM, oldVirtualDOM, oldDOM, container) {
+    const oldComponent = oldVirtualDOM.component
+    // 更新组件的props
+    oldComponent.updateProps(virtualDOM.props)
+    const nextVirtualDOM = oldComponent.render()
+    nextVirtualDOM.component = oldComponent
+    diff(nextVirtualDOM, container, oldDOM)
+}
+```
+调用生命周期函数，首先需要在Component类上加上生命周期函数
+```js {3,6,7,12}
+export function updateComponent(virtualDOM, oldVirtualDOM, oldDOM, container) {
+    const oldComponent = oldVirtualDOM.component
+    oldComponent.componentWillReceiveProps()
+    let props = virtualDOM.props
+    let oldProps = oldVirtualDOM.props
+    if (oldComponent.shouldComponentUpdate(props, oldProps)) {
+        oldComponent.componentWillUpdate(props)
+        oldComponent.updateProps(virtualDOM.props)
+        const nextVirtualDOM = oldComponent.render()
+        nextVirtualDOM.component = oldComponent
+        diff(nextVirtualDOM, container, oldDOM)
+        oldComponent.componentDidUpdate(oldProps)
+    }
+}
+```
+## ref属性
+```jsx
+<h1 ref={title => this.title = title}>{this.props.title}</h1>
+```
+创建DOM元素时，执行ref属性对应的函数
+```js {13-15}
+export function createDOM(virtualDOM) {
+    const type = virtualDOM.type
+    let el
+    if (type === 'text') {
+        el = document.createTextNode(virtualDOM.props.textContent)
+    } else {
+        el = document.createElement(type)
+        updateNodeElement(el, virtualDOM)
+    }
+    virtualDOM.children.forEach(child => {
+        mountElement(child, el)
+    })
+    if (virtualDOM && virtualDOM.props && virtualDOM.props.ref) {
+        virtualDOM.props.ref(el)
+    }
+    el.__virtualDOM = virtualDOM
+    return el
+}
+```
+给组件添加ref属性,ref对应的属性值就是该组件
+```jsx
+<Alert ref={alert => this.alert = alert}/>
+```
+```js {14-21}
+export function mountComponent(virtualDOM, container, oldDOM) {
+    let newVirtualDOM
+
+    if (isFunctionComponent(virtualDOM)) {
+        newVirtualDOM = buildFunctionComponent(virtualDOM)
+    } else {
+        newVirtualDOM = buildClassComponent(virtualDOM)
+        
+    }
+   
+    mountElement(newVirtualDOM, container, oldDOM)
+
+    const component = newVirtualDOM.component
+    // 如果是组件，就调用组件的生命周期函数
+    //  props中存在ref属性，就调用ref属性所对应的函数
+    if(component){
+        component.componentDidMount()
+        if ( component.props && component.props.ref) {
+            component.props.ref(component)
+        }
+    }
+}
+```
