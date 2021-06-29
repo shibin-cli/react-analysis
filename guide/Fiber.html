@@ -3,12 +3,12 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
-    <title>React原理与核心代码解读</title>
+    <title>Fiber | React原理与核心代码解读</title>
     <meta name="generator" content="VuePress 1.8.2">
     <link rel="icon" href="/react-analysis/logo.png">
     <meta name="description" content="实现一个精简版的React，解读React的核心代码">
     
-    <link rel="preload" href="/react-analysis/assets/css/0.styles.82737392.css" as="style"><link rel="preload" href="/react-analysis/assets/js/app.4f108ba3.js" as="script"><link rel="preload" href="/react-analysis/assets/js/2.75bd3f0c.js" as="script"><link rel="preload" href="/react-analysis/assets/js/8.a0151833.js" as="script"><link rel="prefetch" href="/react-analysis/assets/js/10.041bbf67.js"><link rel="prefetch" href="/react-analysis/assets/js/11.22114b0c.js"><link rel="prefetch" href="/react-analysis/assets/js/3.a58a7520.js"><link rel="prefetch" href="/react-analysis/assets/js/4.ba3164ba.js"><link rel="prefetch" href="/react-analysis/assets/js/5.75a3592b.js"><link rel="prefetch" href="/react-analysis/assets/js/6.0377ba0c.js"><link rel="prefetch" href="/react-analysis/assets/js/7.e59ee139.js"><link rel="prefetch" href="/react-analysis/assets/js/9.ff3693b8.js">
+    <link rel="preload" href="/react-analysis/assets/css/0.styles.82737392.css" as="style"><link rel="preload" href="/react-analysis/assets/js/app.23c4f7a1.js" as="script"><link rel="preload" href="/react-analysis/assets/js/2.75bd3f0c.js" as="script"><link rel="preload" href="/react-analysis/assets/js/8.8d5c06c8.js" as="script"><link rel="prefetch" href="/react-analysis/assets/js/10.bd1c7325.js"><link rel="prefetch" href="/react-analysis/assets/js/11.e7180dae.js"><link rel="prefetch" href="/react-analysis/assets/js/3.a58a7520.js"><link rel="prefetch" href="/react-analysis/assets/js/4.ba3164ba.js"><link rel="prefetch" href="/react-analysis/assets/js/5.75a3592b.js"><link rel="prefetch" href="/react-analysis/assets/js/6.0377ba0c.js"><link rel="prefetch" href="/react-analysis/assets/js/7.e59ee139.js"><link rel="prefetch" href="/react-analysis/assets/js/9.ff3693b8.js">
     <link rel="stylesheet" href="/react-analysis/assets/css/0.styles.82737392.css">
   </head>
   <body>
@@ -24,7 +24,138 @@
   指南
 </a></div><div class="nav-item"><a href="https://github.com/shibin-cli/react-analysis" target="_blank" rel="noopener noreferrer" class="nav-link external">
   GitHub
-  <span><svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false" x="0px" y="0px" viewBox="0 0 100 100" width="15" height="15" class="icon outbound"><path fill="currentColor" d="M18.8,85.1h56l0,0c2.2,0,4-1.8,4-4v-32h-8v28h-48v-48h28v-8h-32l0,0c-2.2,0-4,1.8-4,4v56C14.8,83.3,16.6,85.1,18.8,85.1z"></path> <polygon fill="currentColor" points="45.7,48.7 51.3,54.3 77.2,28.5 77.2,37.2 85.2,37.2 85.2,14.9 62.8,14.9 62.8,22.9 71.5,22.9"></polygon></svg> <span class="sr-only">(opens new window)</span></span></a></div> <!----></nav>  <ul class="sidebar-links"><li><section class="sidebar-group depth-0"><a href="/react-analysis/guide/" class="sidebar-heading clickable router-link-active open"><span>指南</span> <!----></a> <ul class="sidebar-links sidebar-group-items"><li><a href="/react-analysis/guide/" aria-current="page" class="sidebar-link">开始</a></li><li><a href="/react-analysis/guide/VirtualDOM.html" class="sidebar-link">VirtualDOM</a></li><li><a href="/react-analysis/guide/Fiber.html" aria-current="page" class="active sidebar-link">Fiber</a></li><li><a href="/react-analysis/guide/React.html" class="sidebar-link">React核心代码解读</a></li></ul></section></li></ul> </aside> <main class="page"> <div class="theme-default-content content__default"></div> <footer class="page-edit"><!----> <!----></footer> <div class="page-nav"><p class="inner"><span class="prev">
+  <span><svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false" x="0px" y="0px" viewBox="0 0 100 100" width="15" height="15" class="icon outbound"><path fill="currentColor" d="M18.8,85.1h56l0,0c2.2,0,4-1.8,4-4v-32h-8v28h-48v-48h28v-8h-32l0,0c-2.2,0-4,1.8-4,4v56C14.8,83.3,16.6,85.1,18.8,85.1z"></path> <polygon fill="currentColor" points="45.7,48.7 51.3,54.3 77.2,28.5 77.2,37.2 85.2,37.2 85.2,14.9 62.8,14.9 62.8,22.9 71.5,22.9"></polygon></svg> <span class="sr-only">(opens new window)</span></span></a></div> <!----></nav>  <ul class="sidebar-links"><li><section class="sidebar-group depth-0"><a href="/react-analysis/guide/" class="sidebar-heading clickable router-link-active open"><span>指南</span> <!----></a> <ul class="sidebar-links sidebar-group-items"><li><a href="/react-analysis/guide/" aria-current="page" class="sidebar-link">开始</a></li><li><a href="/react-analysis/guide/VirtualDOM.html" class="sidebar-link">VirtualDOM</a></li><li><a href="/react-analysis/guide/Fiber.html" aria-current="page" class="active sidebar-link">Fiber</a><ul class="sidebar-sub-headers"><li class="sidebar-sub-header"><a href="/react-analysis/guide/Fiber.html#requestidlecallback" class="sidebar-link">requestIdleCallback</a></li><li class="sidebar-sub-header"><a href="/react-analysis/guide/Fiber.html#开发环境" class="sidebar-link">开发环境</a></li><li class="sidebar-sub-header"><a href="/react-analysis/guide/Fiber.html#创建任务队列" class="sidebar-link">创建任务队列</a></li><li class="sidebar-sub-header"><a href="/react-analysis/guide/Fiber.html#任务调度" class="sidebar-link">任务调度</a></li><li class="sidebar-sub-header"><a href="/react-analysis/guide/Fiber.html#构建fiber对象" class="sidebar-link">构建Fiber对象</a></li><li class="sidebar-sub-header"><a href="/react-analysis/guide/Fiber.html#构建effects数组" class="sidebar-link">构建Effects数组</a></li><li class="sidebar-sub-header"><a href="/react-analysis/guide/Fiber.html#初始渲染" class="sidebar-link">初始渲染</a></li><li class="sidebar-sub-header"><a href="/react-analysis/guide/Fiber.html#处理组件" class="sidebar-link">处理组件</a></li><li class="sidebar-sub-header"><a href="/react-analysis/guide/Fiber.html#更新" class="sidebar-link">更新</a></li></ul></li><li><a href="/react-analysis/guide/React.html" class="sidebar-link">React核心代码解读</a></li></ul></section></li></ul> </aside> <main class="page"> <div class="theme-default-content content__default"><h1 id="fiber"><a href="#fiber" class="header-anchor">#</a> Fiber</h1> <h2 id="requestidlecallback"><a href="#requestidlecallback" class="header-anchor">#</a> <a href="https://developer.mozilla.org/zh-CN/docs/Web/API/Window/requestIdleCallback" target="_blank" rel="noopener noreferrer">requestIdleCallback<span><svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false" x="0px" y="0px" viewBox="0 0 100 100" width="15" height="15" class="icon outbound"><path fill="currentColor" d="M18.8,85.1h56l0,0c2.2,0,4-1.8,4-4v-32h-8v28h-48v-48h28v-8h-32l0,0c-2.2,0-4,1.8-4,4v56C14.8,83.3,16.6,85.1,18.8,85.1z"></path> <polygon fill="currentColor" points="45.7,48.7 51.3,54.3 77.2,28.5 77.2,37.2 85.2,37.2 85.2,14.9 62.8,14.9 62.8,22.9 71.5,22.9"></polygon></svg> <span class="sr-only">(opens new window)</span></span></a></h2> <ul><li><code>requestIdleCallback()</code>在浏览器的空闲时段内调用的函数排队</li></ul> <div class="language-js extra-class"><pre class="language-js"><code><span class="token function">requestIdleCallback</span><span class="token punctuation">(</span><span class="token parameter">deadline</span> <span class="token operator">=&gt;</span> <span class="token punctuation">{</span>
+   console<span class="token punctuation">.</span><span class="token function">log</span><span class="token punctuation">(</span>deadline<span class="token punctuation">.</span><span class="token function">timeRemaining</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">)</span> <span class="token comment">//获取浏览器的空余时间 </span>
+<span class="token punctuation">}</span><span class="token punctuation">)</span>
+</code></pre></div><p>页面是一帧一帧绘制出来的，当每秒绘制帧数达到60时，页面是流畅的，小于这个值时用户就会感觉到卡顿</p> <p>1s 60帧，每一帧的时间是1000/60≈16ms，如果每一帧的时间小于16ms,就说明浏览器有空余时间</p> <h3 id="react之前版本的问题"><a href="#react之前版本的问题" class="header-anchor">#</a> React之前版本的问题</h3> <p>React 16之前的版本对比更新VirtualDOM的过程采用循环递归实现，任务一开始就无法中断,如果组件数量庞大，主线程被长期占用，直到整棵VirtualDOM树对比更新完主线程才会被释放，导致期间无法执行其他任务</p> <p>解决方案</p> <ul><li>利用浏览器空余时间，拒绝占用主进程</li> <li>放弃递归，采用循环</li> <li>任务拆分，将任务拆分成一个个小任务</li></ul> <h2 id="开发环境"><a href="#开发环境" class="header-anchor">#</a> 开发环境</h2> <div class="language-bash extra-class"><pre class="language-bash"><code><span class="token function">npm</span> init -y
+<span class="token comment"># 安装依赖 webpack相关 和 babel</span>
+<span class="token function">npm</span> i -D webpack webpack-dev-server webpack-cli @babel/core @babel/preset-env @babel/preset-react babel-loader html-webpack-plugin
+</code></pre></div><p>配置webpack</p> <div class="language-js extra-class"><pre class="language-js"><code><span class="token keyword">const</span> path <span class="token operator">=</span> <span class="token function">require</span><span class="token punctuation">(</span><span class="token string">'path'</span><span class="token punctuation">)</span>
+<span class="token keyword">const</span> webpack <span class="token operator">=</span> <span class="token function">require</span><span class="token punctuation">(</span><span class="token string">'webpack'</span><span class="token punctuation">)</span>
+<span class="token keyword">const</span> HtmlWebpackPlugin <span class="token operator">=</span> <span class="token function">require</span><span class="token punctuation">(</span><span class="token string">'html-webpack-plugin'</span><span class="token punctuation">)</span>
+
+<span class="token comment">/**@type {import ('webpack').Configuration} */</span>
+module<span class="token punctuation">.</span>exports <span class="token operator">=</span> <span class="token punctuation">{</span>
+    mode<span class="token operator">:</span> <span class="token string">'development'</span><span class="token punctuation">,</span>
+    entry<span class="token operator">:</span> <span class="token string">'./src/main.js'</span><span class="token punctuation">,</span>
+    output<span class="token operator">:</span> <span class="token punctuation">{</span>
+        filename<span class="token operator">:</span> <span class="token string">'main.bundle.js'</span><span class="token punctuation">,</span>
+        path<span class="token operator">:</span> path<span class="token punctuation">.</span><span class="token function">resolve</span><span class="token punctuation">(</span>__dirname<span class="token punctuation">,</span> <span class="token string">'dist'</span><span class="token punctuation">)</span>
+    <span class="token punctuation">}</span><span class="token punctuation">,</span>
+    module<span class="token operator">:</span> <span class="token punctuation">{</span>
+        rules<span class="token operator">:</span> <span class="token punctuation">[</span><span class="token punctuation">{</span>
+            test<span class="token operator">:</span> <span class="token regex"><span class="token regex-delimiter">/</span><span class="token regex-source language-regex">\.js(x?)$</span><span class="token regex-delimiter">/</span></span><span class="token punctuation">,</span>
+            loader<span class="token operator">:</span> <span class="token string">'babel-loader'</span>
+        <span class="token punctuation">}</span><span class="token punctuation">]</span>
+    <span class="token punctuation">}</span><span class="token punctuation">,</span>
+    devServer<span class="token operator">:</span> <span class="token punctuation">{</span>
+        contentBase<span class="token operator">:</span> path<span class="token punctuation">.</span><span class="token function">join</span><span class="token punctuation">(</span>__dirname<span class="token punctuation">,</span> <span class="token string">'dist'</span><span class="token punctuation">)</span><span class="token punctuation">,</span>
+        compress<span class="token operator">:</span> <span class="token boolean">true</span><span class="token punctuation">,</span>
+        port<span class="token operator">:</span> <span class="token number">8080</span><span class="token punctuation">,</span>
+        hot<span class="token operator">:</span> <span class="token boolean">true</span><span class="token punctuation">,</span>
+    <span class="token punctuation">}</span><span class="token punctuation">,</span>
+    devtool<span class="token operator">:</span> <span class="token string">'source-map'</span><span class="token punctuation">,</span>
+    plugins<span class="token operator">:</span> <span class="token punctuation">[</span>
+        <span class="token keyword">new</span> <span class="token class-name">HtmlWebpackPlugin</span><span class="token punctuation">(</span><span class="token punctuation">{</span>
+            title<span class="token operator">:</span> <span class="token string">'Simple react'</span><span class="token punctuation">,</span>
+            template<span class="token operator">:</span> <span class="token string">'./public/index.html'</span>
+        <span class="token punctuation">}</span><span class="token punctuation">)</span><span class="token punctuation">,</span>
+        <span class="token keyword">new</span> <span class="token class-name">webpack<span class="token punctuation">.</span>HotModuleReplacementPlugin</span><span class="token punctuation">(</span><span class="token punctuation">{</span><span class="token punctuation">}</span><span class="token punctuation">)</span>
+    <span class="token punctuation">]</span>
+<span class="token punctuation">}</span>
+</code></pre></div><p>创建webpack入口文件<code>src/main.js</code>、<code>public/index.html</code></p> <div class="language-json extra-class"><pre class="language-json"><code><span class="token punctuation">{</span>
+    <span class="token property">&quot;presets&quot;</span><span class="token operator">:</span> <span class="token punctuation">[</span>
+        <span class="token string">&quot;@babel/preset-env&quot;</span><span class="token punctuation">,</span>
+        <span class="token string">&quot;@babel/preset-react&quot;</span>
+    <span class="token punctuation">]</span>
+<span class="token punctuation">}</span>
+</code></pre></div><p>编写入口文件</p> <div class="language-js extra-class"><pre class="language-js"><code><span class="token keyword">import</span> React<span class="token punctuation">,</span><span class="token punctuation">{</span>render<span class="token punctuation">}</span> <span class="token keyword">from</span> <span class="token string">'./react'</span>
+<span class="token keyword">const</span> container <span class="token operator">=</span> document<span class="token punctuation">.</span><span class="token function">getElementById</span><span class="token punctuation">(</span><span class="token string">'container'</span><span class="token punctuation">)</span>
+<span class="token keyword">const</span> jsx <span class="token operator">=</span> <span class="token punctuation">(</span>
+    <span class="token operator">&lt;</span>div<span class="token operator">&gt;</span><span class="token number">123</span><span class="token operator">&lt;</span><span class="token operator">/</span>div<span class="token operator">&gt;</span>
+<span class="token punctuation">)</span>
+<span class="token function">render</span><span class="token punctuation">(</span>jsx<span class="token punctuation">,</span> container<span class="token punctuation">)</span>
+</code></pre></div><p>实现createElement</p> <div class="language-js extra-class"><pre class="language-js"><code><span class="token keyword">export</span> <span class="token keyword">default</span> <span class="token keyword">function</span> <span class="token function">createElement</span><span class="token punctuation">(</span><span class="token parameter">type<span class="token punctuation">,</span> props<span class="token punctuation">,</span> <span class="token operator">...</span>children</span><span class="token punctuation">)</span> <span class="token punctuation">{</span>
+    <span class="token keyword">const</span> newChildren <span class="token operator">=</span> <span class="token punctuation">[</span><span class="token punctuation">]</span><span class="token punctuation">.</span><span class="token function">concat</span><span class="token punctuation">(</span><span class="token operator">...</span>children<span class="token punctuation">)</span><span class="token punctuation">.</span><span class="token function">reduce</span><span class="token punctuation">(</span><span class="token punctuation">(</span><span class="token parameter">res<span class="token punctuation">,</span> child</span><span class="token punctuation">)</span> <span class="token operator">=&gt;</span> <span class="token punctuation">{</span>
+        <span class="token keyword">if</span> <span class="token punctuation">(</span><span class="token keyword">typeof</span> child <span class="token operator">===</span> <span class="token string">'string'</span> <span class="token operator">||</span> <span class="token keyword">typeof</span> child <span class="token operator">===</span> <span class="token string">'number'</span><span class="token punctuation">)</span> <span class="token punctuation">{</span>
+            res<span class="token punctuation">.</span><span class="token function">push</span><span class="token punctuation">(</span><span class="token function">createElement</span><span class="token punctuation">(</span><span class="token string">'text'</span><span class="token punctuation">,</span> <span class="token punctuation">{</span>
+                textContent<span class="token operator">:</span> child
+            <span class="token punctuation">}</span><span class="token punctuation">)</span><span class="token punctuation">)</span>
+        <span class="token punctuation">}</span> <span class="token keyword">else</span> <span class="token keyword">if</span> <span class="token punctuation">(</span><span class="token keyword">typeof</span> child <span class="token operator">!==</span> <span class="token string">'undefined'</span> <span class="token operator">&amp;&amp;</span> <span class="token keyword">typeof</span> child <span class="token operator">!==</span> <span class="token string">'boolean'</span> <span class="token operator">&amp;&amp;</span> child <span class="token operator">!==</span> <span class="token keyword">null</span><span class="token punctuation">)</span> <span class="token punctuation">{</span>
+            res<span class="token punctuation">.</span><span class="token function">push</span><span class="token punctuation">(</span>child<span class="token punctuation">)</span>
+        <span class="token punctuation">}</span>
+        <span class="token keyword">return</span> res
+    <span class="token punctuation">}</span><span class="token punctuation">,</span> <span class="token punctuation">[</span><span class="token punctuation">]</span><span class="token punctuation">)</span>
+    <span class="token keyword">return</span> <span class="token punctuation">{</span>
+        type<span class="token punctuation">,</span>
+        props<span class="token operator">:</span> <span class="token punctuation">{</span>
+            <span class="token operator">...</span>props<span class="token punctuation">,</span>
+            children<span class="token operator">:</span> newChildren
+        <span class="token punctuation">}</span><span class="token punctuation">,</span>
+        children<span class="token operator">:</span> newChildren
+    <span class="token punctuation">}</span>
+<span class="token punctuation">}</span>
+</code></pre></div><h2 id="创建任务队列"><a href="#创建任务队列" class="header-anchor">#</a> 创建任务队列</h2> <p>实现创建任务队列方法</p> <div class="language-js extra-class"><pre class="language-js"><code><span class="token keyword">export</span> <span class="token keyword">function</span> <span class="token function">createTaskQue</span><span class="token punctuation">(</span><span class="token punctuation">)</span> <span class="token punctuation">{</span>
+    <span class="token keyword">const</span> taskQue <span class="token operator">=</span> <span class="token punctuation">[</span><span class="token punctuation">]</span>
+    <span class="token keyword">return</span> <span class="token punctuation">{</span>
+        <span class="token comment">// 添加任务</span>
+        <span class="token function-variable function">push</span><span class="token operator">:</span> <span class="token parameter">item</span> <span class="token operator">=&gt;</span> taskQue<span class="token punctuation">.</span><span class="token function">push</span><span class="token punctuation">(</span>item<span class="token punctuation">)</span><span class="token punctuation">,</span>
+        <span class="token comment">// 获取任务，先添加的任务先执行，并删除任务</span>
+        <span class="token function-variable function">pop</span><span class="token operator">:</span> <span class="token punctuation">(</span><span class="token punctuation">)</span> <span class="token operator">=&gt;</span> taskQue<span class="token punctuation">.</span><span class="token function">shift</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">,</span>
+        <span class="token comment">// 任务是否为空</span>
+        <span class="token function-variable function">isEmpty</span><span class="token operator">:</span> <span class="token punctuation">(</span><span class="token punctuation">)</span> <span class="token operator">=&gt;</span> taskQue<span class="token punctuation">.</span>length
+    <span class="token punctuation">}</span>
+<span class="token punctuation">}</span>
+</code></pre></div><p>初始的render函数</p> <div class="language-js extra-class"><pre class="language-js"><code><span class="token keyword">const</span> taskQue <span class="token operator">=</span> <span class="token function">createTaskQue</span><span class="token punctuation">(</span><span class="token punctuation">)</span>
+
+<span class="token keyword">export</span> <span class="token keyword">function</span> <span class="token function">render</span><span class="token punctuation">(</span><span class="token parameter">element<span class="token punctuation">,</span> dom</span><span class="token punctuation">)</span> <span class="token punctuation">{</span>
+    taskQue<span class="token punctuation">.</span><span class="token function">push</span><span class="token punctuation">(</span><span class="token punctuation">{</span>
+        dom<span class="token punctuation">,</span>
+        props<span class="token operator">:</span> <span class="token punctuation">{</span>
+            children<span class="token operator">:</span> element
+        <span class="token punctuation">}</span>
+    <span class="token punctuation">}</span><span class="token punctuation">)</span>
+<span class="token punctuation">}</span>
+</code></pre></div><h2 id="任务调度"><a href="#任务调度" class="header-anchor">#</a> 任务调度</h2> <p>首先，在首次执行render函数时，如果浏览器有空闲时间，就执行任务</p> <div class="language-js extra-class"><pre class="language-js"><code><span class="token keyword">export</span> <span class="token keyword">function</span> <span class="token function">render</span><span class="token punctuation">(</span><span class="token parameter">element<span class="token punctuation">,</span> dom</span><span class="token punctuation">)</span> <span class="token punctuation">{</span>
+    taskQue<span class="token punctuation">.</span><span class="token function">push</span><span class="token punctuation">(</span><span class="token punctuation">{</span>
+        dom<span class="token punctuation">,</span>
+        props<span class="token operator">:</span> <span class="token punctuation">{</span>
+            children<span class="token operator">:</span> element
+        <span class="token punctuation">}</span>
+    <span class="token punctuation">}</span><span class="token punctuation">)</span>
+    <span class="token function">requestIdleCallback</span><span class="token punctuation">(</span>performTask<span class="token punctuation">)</span>
+<span class="token punctuation">}</span>
+</code></pre></div><p>下面实现整体流程</p> <ul><li>首先执行任务（没有任务时获取任务）</li> <li>执行任务过程中，浏览器
+<ul><li>如果有空余时间就一个任务接一个任务执行</li> <li>没有空余时间就先暂停，当浏览器有空余时间时继续执行任务</li> <li>最终，所有任务执行完毕后跳出</li></ul></li></ul> <div class="language-js extra-class"><pre class="language-js"><code><span class="token keyword">const</span> taskQue <span class="token operator">=</span> <span class="token function">createTaskQue</span><span class="token punctuation">(</span><span class="token punctuation">)</span>
+
+<span class="token keyword">let</span> subTask <span class="token operator">=</span> <span class="token keyword">null</span>
+<span class="token comment">// 获取第一个任务</span>
+<span class="token keyword">function</span> <span class="token function">getFirstTask</span><span class="token punctuation">(</span><span class="token punctuation">)</span> <span class="token punctuation">{</span>
+
+<span class="token punctuation">}</span>
+
+<span class="token keyword">function</span> <span class="token function">performTask</span><span class="token punctuation">(</span><span class="token parameter">deadLine</span><span class="token punctuation">)</span> <span class="token punctuation">{</span>
+    <span class="token comment">// 执行任务,当任务执行完毕浏览器没有空余时会跳出,执行后面的逻辑</span>
+    <span class="token function">workLoop</span><span class="token punctuation">(</span>deadLine<span class="token punctuation">)</span>
+    <span class="token comment">// 如果任务存在,或者任务列表中还存在有任务</span>
+    <span class="token keyword">if</span> <span class="token punctuation">(</span>subTask <span class="token operator">||</span> <span class="token operator">!</span>taskQue<span class="token punctuation">.</span><span class="token function">isEmpty</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">)</span> <span class="token punctuation">{</span>
+        <span class="token function">requestIdleCallback</span><span class="token punctuation">(</span>performTask<span class="token punctuation">)</span>
+    <span class="token punctuation">}</span>
+<span class="token punctuation">}</span>
+<span class="token keyword">function</span> <span class="token function">workLoop</span><span class="token punctuation">(</span><span class="token parameter">deadLine</span><span class="token punctuation">)</span><span class="token punctuation">{</span>
+    <span class="token keyword">if</span> <span class="token punctuation">(</span><span class="token operator">!</span>subTask<span class="token punctuation">)</span> <span class="token punctuation">{</span>
+        subTask <span class="token operator">=</span> <span class="token function">getFirstTask</span><span class="token punctuation">(</span><span class="token punctuation">)</span>
+    <span class="token punctuation">}</span>
+    <span class="token comment">// 如果任务存在 并且浏览器有空余时间就执行任务</span>
+    <span class="token keyword">while</span> <span class="token punctuation">(</span>subeTask <span class="token operator">&amp;&amp;</span> deadLine<span class="token punctuation">.</span><span class="token function">timeRemaining</span><span class="token punctuation">(</span><span class="token punctuation">)</span> <span class="token operator">&gt;</span> <span class="token number">1</span><span class="token punctuation">)</span> <span class="token punctuation">{</span>
+        subTask <span class="token operator">=</span> <span class="token function">executeTask</span><span class="token punctuation">(</span>subTask<span class="token punctuation">)</span>
+    <span class="token punctuation">}</span>
+<span class="token punctuation">}</span>
+<span class="token comment">// 执行任务，并返回下一个任务</span>
+<span class="token keyword">function</span> <span class="token function">executeTask</span><span class="token punctuation">(</span><span class="token parameter">subTask</span><span class="token punctuation">)</span> <span class="token punctuation">{</span>
+
+<span class="token punctuation">}</span>
+</code></pre></div><h2 id="构建fiber对象"><a href="#构建fiber对象" class="header-anchor">#</a> 构建Fiber对象</h2> <h2 id="构建effects数组"><a href="#构建effects数组" class="header-anchor">#</a> 构建Effects数组</h2> <h2 id="初始渲染"><a href="#初始渲染" class="header-anchor">#</a> 初始渲染</h2> <h2 id="处理组件"><a href="#处理组件" class="header-anchor">#</a> 处理组件</h2> <h3 id="类组件"><a href="#类组件" class="header-anchor">#</a> 类组件</h3> <h3 id="函数组件"><a href="#函数组件" class="header-anchor">#</a> 函数组件</h3> <h2 id="更新"><a href="#更新" class="header-anchor">#</a> 更新</h2></div> <footer class="page-edit"><!----> <!----></footer> <div class="page-nav"><p class="inner"><span class="prev">
       ←
       <a href="/react-analysis/guide/VirtualDOM.html" class="prev">
         VirtualDOM
@@ -33,6 +164,6 @@
       </a>
       →
     </span></p></div> </main></div><div class="global-ui"></div></div>
-    <script src="/react-analysis/assets/js/app.4f108ba3.js" defer></script><script src="/react-analysis/assets/js/2.75bd3f0c.js" defer></script><script src="/react-analysis/assets/js/8.a0151833.js" defer></script>
+    <script src="/react-analysis/assets/js/app.23c4f7a1.js" defer></script><script src="/react-analysis/assets/js/2.75bd3f0c.js" defer></script><script src="/react-analysis/assets/js/8.8d5c06c8.js" defer></script>
   </body>
 </html>
