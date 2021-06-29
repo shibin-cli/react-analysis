@@ -707,7 +707,7 @@ export function createDOM(virtualDOM) {
 ```jsx
 <Alert ref={alert => this.alert = alert}/>
 ```
-```js {14-21}
+```js {13-20}
 export function mountComponent(virtualDOM, container, oldDOM) {
     let newVirtualDOM
 
@@ -715,7 +715,6 @@ export function mountComponent(virtualDOM, container, oldDOM) {
         newVirtualDOM = buildFunctionComponent(virtualDOM)
     } else {
         newVirtualDOM = buildClassComponent(virtualDOM)
-        
     }
    
     mountElement(newVirtualDOM, container, oldDOM)
@@ -725,9 +724,246 @@ export function mountComponent(virtualDOM, container, oldDOM) {
     //  props中存在ref属性，就调用ref属性所对应的函数
     if(component){
         component.componentDidMount()
-        if ( component.props && component.props.ref) {
+        if (component.props && component.props.ref) {
             component.props.ref(component)
         }
     }
+}
+```
+## key属性比对
+同一父节点下的子节点，可以通过key属性比对VirtualDOM对象
+```diff
+export default function diff(virtualDOM, container, oldDOM) {
+    if (!oldDOM) {
+        mountElement(virtualDOM, container)
+    } else {
+        const oldVirtualDOM = oldDOM.__virtualDOM
+
+        if (oldVirtualDOM.type === virtualDOM.type) {
+            if (virtualDOM.type === 'text') {
+                updateNodeText(virtualDOM, oldVirtualDOM, oldDOM)
+            } else {
+                updateNodeElement(oldDOM, virtualDOM, oldVirtualDOM)
+            }
+-            const oldChildNodes = oldDOM.childNodes
+-            virtualDOM.children.forEach((child, index) => {
+-               diff(child, oldDOM, oldChildNodes[index])
+-            })
+
+            // 比对子节点
++           diffChildren(virtualDOM, oldDOM)
+
+-            if (oldChildNodes.length > virtualDOM.children.length) {
+-                for (let i = oldChildNodes.length - 1, len = virtualDOM.children.length; i > len - 1; i--) {
+-                    unmountElement(oldChildNodes[i])
+-                }
+-            }
+        } else if (!isComponent(virtualDOM)) {
+-            const el = createDOM(virtualDOM)
+-            container.replaceChild(el, oldDOM)
+            // 这里修改下不是组件的逻辑，因为virtualDOM对象有可能是组件创建的
+            // 最终会调用mounNativeElement处理组件的逻辑
++            mountElement(virtualDOM, container, oldDOM)
+        } else {
+            diffComponent(virtualDOM, oldVirtualDOM, oldDOM, container)
+        }
+    }
+}
+```
+* 首先判断旧的节点上存不存在key属性，不存在，就还用之前的逻辑(循环调用diff进行比对)
+* 存在key属性
+  * 用新virtualDOM中的key属性去去旧节点中查找，如果存在，判断位置是否正确，不正确，就将旧节点移动的正确的位置
+  * 如果不存在就创建virtualDOM对应的DOM
+```js
+function diffChildren(virtualDOM, oldDOM) {
+    const oldChildNodes = oldDOM.childNodes
+
+    let keyElements = {}
+    for (let i = 0, len = oldChildNodes.length; i < len; i++) {
+        const el = oldChildNodes[i]
+        if (el.nodeType === 1) {
+            const key = el.getAttribute('key')
+            if (key) {
+                keyElements[key] = el
+            }
+        }
+    }
+
+    const hasNoKey = Object.keys(keyElements).length === 0
+
+    if (hasNoKey) {
+        virtualDOM.children.forEach((child, index) => {
+            diff(child, oldDOM, oldChildNodes[index])
+        })
+    } else {
+        // 存在key属性
+        virtualDOM.children.forEach((child, index) => {
+            const key = child.props.key
+            if (key) {
+                const el = keyElements[key]
+                if (el) {
+                    // 移动oldChilNodes位置
+                    if(el !== oldChildNodes[index])  oldDOM.insertBefore(el, oldChildNodes[index])
+                    // 比对
+                    else diff(child, oldDOM, el)
+                } else {
+                    // 重新创建
+                    mountElement(child, oldDOM, oldChildNodes[index], true)
+                }
+            } 
+        })
+    }
+    if (oldChildNodes.length > virtualDOM.children.length) {
+        for (let i = oldChildNodes.length - 1, len = virtualDOM.children.length; i > len - 1; i--) {
+            unmountElement(oldChildNodes[i])
+        }
+    }
+}
+```
+`mountElement`加了个参数，是否是新增，如果是新增，在调用`mounNativeElement`时，就不会删除oldDOM。在插入元素时，需要将新元素插入到oldDOM之前
+```js {13-17}
+export function mountElement(virtualDOM, container, oldDOM, isNew) {
+    if (isComponent(virtualDOM)) {
+        mountComponent(virtualDOM, container, oldDOM, isNew)
+    } else {
+        mounNativeElement(virtualDOM, container, oldDOM, isNew)
+    }
+}
+
+export function mounNativeElement(virtualDOM, container, oldDOM, isNew) {
+    const dom = createDOM(virtualDOM)
+
+    if (oldDOM) {
+        // 将元素插入的oldDOM元素之前
+        container.insertBefore(dom, oldDOM)
+        if (!isNew) {
+            unmountElement(oldDOM)
+        }
+    } else {
+        container.appendChild(dom)
+    }
+    const component = virtualDOM.component
+    if (component) {
+        component.setDOM(dom)
+    }
+}
+
+export function mountComponent(virtualDOM, container, oldDOM, isNew) {
+    let newVirtualDOM
+
+    if (isFunctionComponent(virtualDOM)) {
+        newVirtualDOM = buildFunctionComponent(virtualDOM)
+    } else {
+        newVirtualDOM = buildClassComponent(virtualDOM)
+    }
+
+    mountElement(newVirtualDOM, container, oldDOM, isNew)
+    const component = newVirtualDOM.component
+    if (component) {
+        component.componentDidMount()
+        if (component.props && component.props.ref) {
+            component.props.ref(component)
+        }
+    }
+}
+```
+#### key属性删除节点
+如果不存在key属性，则还是使用之前的根据索引去删除多余元素
+
+如果存在key属性，则需要遍历旧的节点，并使用旧节点的key到新节点中查找对应key属性的元素，如果新节点中不存在，则说明当前节点已经被删除
+```js {23-27,43-49}
+function diffChildren(virtualDOM, oldDOM) {
+    const oldChildNodes = oldDOM.childNodes
+
+    let keyElements = {}
+    for (let i = 0, len = oldChildNodes.length; i < len; i++) {
+        const el = oldChildNodes[i]
+        if (el.nodeType === 1) {
+            const key = el.getAttribute('key')
+            if (key) {
+                keyElements[key] = el
+            }
+        }
+    }
+
+    const hasNoKey = Object.keys(keyElements).length === 0
+
+    if (hasNoKey) {
+        // 比对节点
+        virtualDOM.children.forEach((child, index) => {
+            diff(child, oldDOM, oldChildNodes[index])
+        })
+        // 删除节点
+        if (oldChildNodes.length > virtualDOM.children.length) {
+            for (let i = oldChildNodes.length - 1, len = virtualDOM.children.length; i > len - 1; i--) {
+                unmountElement(oldChildNodes[i])
+            }
+        }
+    } else {
+        const newKeyElements = {}
+        virtualDOM.children.forEach((child, index) => {
+            const key = child.props.key
+            if (key) {
+                newKeyElements[key] = child
+                const el = keyElements[key]
+                if (el) {
+                    if (el !== oldChildNodes[index]) oldDOM.insertBefore(el, oldChildNodes[index])
+                    else diff(child, oldDOM, el)
+                } else {
+                    mountElement(child, oldDOM, oldChildNodes[index], true)
+                }
+            }
+        })
+        for (let i = 0; i < oldChildNodes.length; i++) {
+            let oldChild = oldChildNodes[i]
+            let oldKey = oldChild.__virtualDOM.props.key
+            if (!newKeyElements[oldKey]) {
+                unmountElement(oldChild)
+            }
+        }
+    }
+}
+```
+## 删除节点
+删除节点还需要考虑节点是节点还是文本
+* 文本，直接删除节点
+* 组件，调用卸载组件的生命周期函数
+* 如果删除的节点有ref属性，则需要删除ref属性
+* 如果有事件，则需要删除对应节点的事件
+
+```js
+export function unmountElement(el) {
+    const virtualDOM = el.__virtualDOM
+    if (virtualDOM.type === 'text') {
+        el.remove()
+        return
+    }
+    // 不是文本
+    const component = virtualDOM.component
+    // 组件生命周期
+    if (virtualDOM.component) {
+        component.componentWillMount()
+    }
+    const props = virtualDOM.props
+    // 清空ref属性
+    if (props && props.ref) {
+        props.ref(null)
+    }
+    // 删除事件
+    Object.keys(props).forEach(propName => {
+        if (propName.startsWith('on')) {
+            const event = propName.slice(2).toLowerCase()
+            const val = virtualDOM.props[propName]
+            el.removeEventListener(event, val)
+        }
+    })
+    // 删除子节点事件
+    if (el.childNodes.length) {
+        el.childNodes.forEach(child => {
+            unmountElement(child)
+        })
+    }
+    // 删除当前元素
+    el.remove()
 }
 ```

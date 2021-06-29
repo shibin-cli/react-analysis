@@ -37,18 +37,19 @@ import SpReact from "./SpReact"
 //             </div>)
 //     }
 // }
+let i =3
 export default class App extends SpReact.Component {
     constructor(props) {
         super(props)
         this.state = {
             data: [{
-                id: 0,
+                id: '0',
                 name: '张三'
             }, {
-                id: 1,
+                id: '1',
                 name: '李四'
             }, {
-                id: 2,
+                id: '2',
                 name: '王五'
             }]
         }
@@ -57,11 +58,17 @@ export default class App extends SpReact.Component {
 
     handleClick() {
         const data = JSON.parse(JSON.stringify(this.state.data))
-        data.push(data.shift())
-        console.log(data)
+        // data.push(data.shift())
+        // data.push()
+    //    data.shift()
+    data[0] = {
+        id: '0',
+        name: '张三haha'
+    }
         this.setState({
             data
         })
+        console.log(this.state.data)
     }
     render() {
         return (
@@ -69,7 +76,7 @@ export default class App extends SpReact.Component {
                 <ul>
                     {
                         this.state.data.map(item => (
-                            <li >{item.name}{item.id}</li>
+                            <li key={item.id}>{item.name}{item.id}</li>
                         ))
                     }
 

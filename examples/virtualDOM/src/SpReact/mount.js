@@ -6,20 +6,24 @@ import {
     updateNodeElement,
     unmountElement
 } from "./update"
-export function mountElement(virtualDOM, container, oldDOM) {
-
+export function mountElement(virtualDOM, container, oldDOM, isNew) {
     if (isComponent(virtualDOM)) {
-        mountComponent(virtualDOM, container, oldDOM)
+        mountComponent(virtualDOM, container, oldDOM, isNew)
     } else {
-        mounNativeElement(virtualDOM, container, oldDOM)
+        mounNativeElement(virtualDOM, container, oldDOM, isNew)
     }
 }
 
-export function mounNativeElement(virtualDOM, container, oldDOM) {
+export function mounNativeElement(virtualDOM, container, oldDOM, isNew) {
     const dom = createDOM(virtualDOM)
-    container.appendChild(dom)
+
     if (oldDOM) {
-        unmountElement(oldDOM)
+        container.insertBefore(dom, oldDOM)
+        if (!isNew) {
+            unmountElement(oldDOM)
+        }
+    } else {
+        container.appendChild(dom)
     }
     const component = virtualDOM.component
     if (component) {
@@ -27,21 +31,20 @@ export function mounNativeElement(virtualDOM, container, oldDOM) {
     }
 }
 
-export function mountComponent(virtualDOM, container, oldDOM) {
+export function mountComponent(virtualDOM, container, oldDOM, isNew) {
     let newVirtualDOM
 
     if (isFunctionComponent(virtualDOM)) {
         newVirtualDOM = buildFunctionComponent(virtualDOM)
     } else {
         newVirtualDOM = buildClassComponent(virtualDOM)
-        
     }
-   
-    mountElement(newVirtualDOM, container, oldDOM)
+
+    mountElement(newVirtualDOM, container, oldDOM, isNew)
     const component = newVirtualDOM.component
-    if(component){
+    if (component) {
         component.componentDidMount()
-        if ( component.props && component.props.ref) {
+        if (component.props && component.props.ref) {
             component.props.ref(component)
         }
     }

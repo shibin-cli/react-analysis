@@ -17,11 +17,11 @@ export function updateNodeElement(el, virtualDOM, oldVirtualDOM) {
             }
         } else if (propName === 'className') {
             el.setAttribute('class', val)
-        } else if (propName !== 'children' && propName!=='ref') {
+        } else if (propName !== 'children' && propName !== 'ref') {
             el.setAttribute(propName, val)
         }
     })
-    
+
     Object.keys(oldProps).forEach(oldPropName => {
         const oldVal = oldProps[oldPropName]
         const val = props[oldPropName]
@@ -62,5 +62,31 @@ export function updateComponent(virtualDOM, oldVirtualDOM, oldDOM, container) {
 }
 
 export function unmountElement(el) {
+    const virtualDOM = el.__virtualDOM
+    if (virtualDOM.type === 'text') {
+        el.remove()
+        return
+    }
+    // 不是文本
+    const component = virtualDOM.component
+    if (virtualDOM.component) {
+        component.componentWillMount()
+    }
+    const props = virtualDOM.props
+    if (props && props.ref) {
+        props.ref(null)
+    }
+    Object.keys(props).forEach(propName => {
+        if (propName.startsWith('on')) {
+            const event = propName.slice(2).toLowerCase()
+            const val = virtualDOM.props[propName]
+            el.removeEventListener(event, val)
+        }
+    })
+    if (el.childNodes.length) {
+        el.childNodes.forEach(child => {
+            unmountElement(child)
+        })
+    }
     el.remove()
 }
